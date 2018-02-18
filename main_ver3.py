@@ -79,11 +79,16 @@ def alarm():
 def Observe():
     global doAlarm
     daebi = int(input(">>> 몇초 대비 로 설정하는지 숫자를 입력 (초단위) :: "))
+    pumcnt = int(input(">>> 알람을 받을 펌핑 횟수 입력해주세요 (예: 2입력하면 2번이상이면 모두) :: "))
+    puminit = int(input(">>> 펌핑 초기화 시간 입력 (초단위) :: "))
     print("[Start]")
     t = threading.Thread(target=alarm)
     t.start()
     won_price = {}
     btc_price = {}
+    won_pumping = {}
+    btc_pumping = {}
+
     driver.find_element_by_xpath('//*[@id="root"]/div/div/div[2]/section[2]/article[1]/span[2]/ul/li[1]/a').click()
     time.sleep(2)
     bs = BeautifulSoup(driver.page_source, "lxml")
@@ -93,6 +98,8 @@ def Observe():
         name = tr.find('td', class_='tit').find('a').get_text().strip()
         price = float(tr.find('td', class_='price').get_text().replace(',',''))
         won_price[name] = price
+        won_pumping[name] = 1
+
     driver.find_element_by_xpath('//*[@id="root"]/div/div/div[2]/section[2]/article[1]/span[2]/ul/li[2]/a').click()
     time.sleep(2)
     bs = BeautifulSoup(driver.page_source, "lxml")
@@ -102,9 +109,16 @@ def Observe():
         name = tr.find('td', class_='tit').find('a').get_text().strip()
         price = float(tr.find('td', class_='price').find('strong').get_text().replace(',', ''))
         btc_price[name] = price
+        btc_pumping[name] = 1
 
+    cycleinitidx = int(puminit/daebi)
+    cycleidx = 1
     while True:
         time.sleep(daebi-2)
+        if cycleidx > cycleinitidx:
+            cycleidx = 1
+            won_pumping = won_pumping.fromkeys(won_pumping, 1)
+            btc_pumping = btc_pumping.fromkeys(btc_pumping, 1)
         driver.find_element_by_xpath('//*[@id="root"]/div/div/div[2]/section[2]/article[1]/span[2]/ul/li[1]/a').click()
         time.sleep(1)
         bs = BeautifulSoup(driver.page_source, "lxml")
@@ -115,12 +129,17 @@ def Observe():
             price = float(tr.find('td', class_='price').get_text().replace(',', ''))
             percent = float((price - won_price[name]) / won_price[name]) * 100
             won_price[name] = price
-            if won_perdict[name] < percent:
+            if pow(won_perdict[name],won_pumping[name]) < percent:
                 if won_alarmdict[name]:
-                    doAlarm = True
-                    print(str(datetime.now().strftime('%Y-%m-%d %H:%M:%S')) + "(WON): " + name + " 감지 시간대비 "+ str(percent))
+                    if won_pumping[name] >= pumcnt:
+                        print(str(datetime.now().strftime('%Y-%m-%d %H:%M:%S')) + "(WON): [" + name + "] " + str(
+                            won_pumping[name]) + "회 펌핑감지 기존 시간대비 " + str(percent))
+                        doAlarm = True
+                    won_pumping[name] += 1
                     with open('원화_log.txt', 'a') as f:
-                        f.write(str(datetime.now().strftime('%Y-%m-%d %H:%M:%S')) + "(WON): " + name + " 감지 시간대비 "+str(percent)+'\n')
+                        if won_pumping[name] >= pumcnt:
+                            f.write(str(datetime.now().strftime('%Y-%m-%d %H:%M:%S')) + "(WON): [" + name + "] " + str(
+                                won_pumping[name]) + "회 펌핑감지 기존 시간대비 " + str(percent)+'\n')
 
         driver.find_element_by_xpath('//*[@id="root"]/div/div/div[2]/section[2]/article[1]/span[2]/ul/li[2]/a').click()
         time.sleep(1)
@@ -132,12 +151,17 @@ def Observe():
             price = float(tr.find('td', class_='price').find('strong').get_text().replace(',', ''))
             percent = float((price - btc_price[name]) / btc_price[name]) * 100
             btc_price[name] = price
-            if btc_perdict[name] < percent:
+            if pow(btc_perdict[name],btc_pumping[name]) < percent:
                 if btc_alarmdict[name]:
-                    doAlarm = True
-                    print(str(datetime.now().strftime('%Y-%m-%d %H:%M:%S')) + "(BTC): " + name + " 감지 시간대비 " + str(percent))
+                    if btc_pumping[name] >= pumcnt:
+                        print(str(datetime.now().strftime('%Y-%m-%d %H:%M:%S')) + "(BTC): [" + name + "] " + str(
+                            btc_pumping[name]) + "회 펌핑감지 기존 시간대비 " + str(percent))
+                        doAlarm = True
                     with open('BTC_log.txt', 'a') as f:
-                        f.write(str(datetime.now().strftime('%Y-%m-%d %H:%M:%S')) + "(BTC): " + name + " 감지 시간대비 "+str(percent)+'\n')
+                        if btc_pumping[name] >= pumcnt:
+                            f.write(str(datetime.now().strftime('%Y-%m-%d %H:%M:%S')) + "(BTC): [" + name + "] " + str(
+                                btc_pumping[name]) + "회 펌핑감지 기존 시간대비 " + str(percent) + '\n')
+        cycleidx+=1
 
 
 if __name__ == "__main__":
