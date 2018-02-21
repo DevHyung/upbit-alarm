@@ -1,3 +1,4 @@
+
 import threading
 from pygame import mixer
 mixer.init()
@@ -54,9 +55,9 @@ def openOptionFile():
     global delay
     print("_"*50)
     delay = int(input(">>> 알람 울리는 주기 입력 (초단위) :: "))
-    os.system("start 원화.csv")
+    #os.system("start 원화.csv")
     input(">>> 원화 설정파일을 설정후 종료하고 엔터를 눌러주세요")
-    os.system("start BTC.csv")
+    #os.system("start BTC.csv")
     input(">>> BTC 설정파일을 설정후 종료하고 엔터를 눌러주세요")
     with open("원화.csv") as f3:
         for line in f3.readlines()[1:]:
@@ -117,6 +118,7 @@ def Observe():
         time.sleep(daebi-2)
         if cycleidx > cycleinitidx:
             cycleidx = 1
+            print("@ 펌핑횟수 초기화 완료")
             won_pumping = won_pumping.fromkeys(won_pumping, 1)
             btc_pumping = btc_pumping.fromkeys(btc_pumping, 1)
         driver.find_element_by_xpath('//*[@id="root"]/div/div/div[2]/section[2]/article[1]/span[2]/ul/li[1]/a').click()
@@ -128,9 +130,11 @@ def Observe():
             name = tr.find('td', class_='tit').find('a').get_text().strip()
             price = float(tr.find('td', class_='price').get_text().replace(',', ''))
             percent = float((price - won_price[name]) / won_price[name]) * 100
-            won_price[name] = price
-            if pow(won_perdict[name],won_pumping[name]) < percent:
+            if cycleidx == 1:
+                won_price[name] = price
+            if won_perdict[name] < percent:
                 if won_alarmdict[name]:
+                    won_price[name] = won_price[name] + won_price[name] * (won_perdict[name] / float(100))
                     if won_pumping[name] >= pumcnt:
                         print(str(datetime.now().strftime('%Y-%m-%d %H:%M:%S')) + "(WON): [" + name + "] " + str(
                             won_pumping[name]) + "회 펌핑감지 기존 시간대비 " + str(percent))
@@ -150,13 +154,16 @@ def Observe():
             name = tr.find('td', class_='tit').find('a').get_text().strip()
             price = float(tr.find('td', class_='price').find('strong').get_text().replace(',', ''))
             percent = float((price - btc_price[name]) / btc_price[name]) * 100
-            btc_price[name] = price
-            if pow(btc_perdict[name],btc_pumping[name]) < percent:
+            if cycleidx == 1:
+                btc_price[name] = price
+            if btc_perdict[name] < percent:
                 if btc_alarmdict[name]:
+                    btc_price[name] = btc_price[name] + btc_price[name] * (btc_perdict[name] / float(100))
                     if btc_pumping[name] >= pumcnt:
                         print(str(datetime.now().strftime('%Y-%m-%d %H:%M:%S')) + "(BTC): [" + name + "] " + str(
                             btc_pumping[name]) + "회 펌핑감지 기존 시간대비 " + str(percent))
                         doAlarm = True
+                    btc_pumping[name] += 1
                     with open('BTC_log.txt', 'a') as f:
                         if btc_pumping[name] >= pumcnt:
                             f.write(str(datetime.now().strftime('%Y-%m-%d %H:%M:%S')) + "(BTC): [" + name + "] " + str(
